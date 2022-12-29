@@ -51,7 +51,7 @@ def make_get_up_record(index, timestamp, value_string):
 
 def make_expressed_breast_milk_record(index, value_string):
   volume_end = value_string.find("ml")
-  volume = value_string[:volume_end]
+  volume = int(value_string[:volume_end])
   record = {"index": index, "volume": volume}
   return record
 
@@ -60,7 +60,7 @@ def make_milk_record(index, value_string):
     volume = None
   else:
     volume_end = value_string.find("ml")
-    volume = value_string[:volume_end]
+    volume = int(value_string[:volume_end])
   record = {"index": index, "volume": volume}
   return record
 
@@ -72,8 +72,9 @@ def make_breast_milk_record(index, value_string):
   if value_string is None:
     volume = None
   elif "ml" in value_string:
+    volume_start = value_string.find("(") + 1
     volume_end = value_string.find("ml")
-    volume = value_string[:volume_end]
+    volume = int(value_string[volume_start:volume_end])
   elif "母乳" == value_string:
     volume = None
   elif ("左" in value_string) and ("右" in value_string):
@@ -112,13 +113,13 @@ def make_breast_milk_record(index, value_string):
 
 def make_height_record(index, value_string):
   height_end = value_string.find("cm")
-  height = value_string[:height_end]
+  height = float(value_string[:height_end])
   record = {"index": index, "height": height}
   return record
 
 def make_weight_record(index, value_string):
   weight_end = value_string.find("kg")
-  weight = value_string[:weight_end]
+  weight = float(value_string[:weight_end])
   record = {"index": index, "weight": weight}
   return record
 
