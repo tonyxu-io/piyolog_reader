@@ -159,7 +159,7 @@ def read_text(text_path, index_offset=0):
   name = None
   age = None
   commnet = None
-  local_timezone = datetime.timezone(datetime.timedelta(hours=9), "JST")
+  local_timezone = datetime.timezone(datetime.timedelta(hours=9), "Asia/Tokyo")
   index = index_offset
   date_data_record = None
   with open(text_path) as f:
