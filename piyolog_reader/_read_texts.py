@@ -45,7 +45,7 @@ def make_get_up_record(index, timestamp, value_string):
     minutes = int(value_string[hours_end+2:minutes_end])
     sleeping_time = datetime.timedelta(hours=hours, minutes=minutes)
     wake_up_time = timestamp
-    bedtime = timestamp - wake_up_time
+    bedtime = timestamp - sleeping_time
     record = {"index": index, "sleeping_time": sleeping_time, "wake_up_time": wake_up_time, "bedtime": bedtime, "error": False}  
   return record
 
