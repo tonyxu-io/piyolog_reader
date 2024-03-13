@@ -4,6 +4,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import sqlite3
+import re
 
 conn = sqlite3.connect("piyolog.db")
 
@@ -182,6 +183,8 @@ def read_text(text_path, index_offset=0):
     breast_milk_df_list = []
     feces_df_list = []
     hospital_df_list = []
+    vaccine_df_list = []
+    prepare_expressed_breast_milk_df_list = []
 
     state = State.START
     name = None
@@ -193,7 +196,7 @@ def read_text(text_path, index_offset=0):
     with open(text_path) as f:
         for i, line in enumerate(f):
             line = line.strip()
-            # print(i, line)
+            print(i, state, line)
             # if i >= 100:
             #  break
             if len(line) == 0 and state == State.BLANK_AFTER_NAME:
@@ -220,6 +223,8 @@ def read_text(text_path, index_offset=0):
                 state = State.DATE
                 continue
             elif State.DATE == state:
+                if "[Piyo日志]" in line or len(line) == 0 or line == "----------":
+                  continue
                 date = datetime.datetime.strptime(line[:-3], "%Y年%m月%d日")
                 # print("date", date)
                 state = State.NAME
@@ -254,17 +259,25 @@ def read_text(text_path, index_offset=0):
                 )
                 event_value_string = line[8:]
                 event_string = event_value_string
-                envet_name_end = event_value_string.find(" ")
+                event_name_end = event_value_string.find(" ")
                 value_string = None
-                if envet_name_end > 0:
-                    event_string = event_value_string[:envet_name_end]
-                    value_string = event_value_string[envet_name_end + 1 :]
+                if event_name_end > 0:
+                    event_string = event_value_string[:event_name_end]
+                    value_string = event_value_string[event_name_end + 1 :]
                 event_record = {
                     "index": index,
                     "timestamp": event_datetime,
                     "event": event_string,
                 }
                 event_df_list.append(event_record)
+                if re.match(r'\d+ml', event_string):
+                  volume_end = event_string.find("ml")
+                  volume = int(event_string[:volume_end])
+                  record = {
+                    "index": index,
+                    "volume": volume
+                  }
+                  prepare_expressed_breast_milk_df_list.append(record)
                 if event_string == "睡觉":
                     record = make_go_to_bed_record(
                         index=index, value_string=value_string
@@ -311,6 +324,9 @@ def read_text(text_path, index_offset=0):
                 elif event_string == "医院":
                     record = {"index": index, "comment": value_string}
                     hospital_df_list.append(record)
+                elif event_string == "预防接种" and value_string != None:
+                    record = {"index": index, "vaccine": value_string}
+                    vaccine_df_list.append(record)
                 elif value_string is not None:
                     raise RuntimeError(
                         "unknown event has value string", event_string, value_string
@@ -330,7 +346,7 @@ def read_text(text_path, index_offset=0):
                 raise RuntimeError("unknown state", state)
 
         date_df = pd.DataFrame(date_df_list)
-        date_df.to_sql("dates", conn, if_exists="replace")
+        date_df.to_sql("dates", conn, if_exists="append")
 
         event_df = pd.DataFrame(event_df_list)
         if len(event_df) == 0:
@@ -342,13 +358,13 @@ def read_text(text_path, index_offset=0):
                 }
             )
         event_df = event_df.set_index("index")
-        event_df.to_sql("events", conn, if_exists="replace")
+        event_df.to_sql("events", conn, if_exists="append")
 
         go_to_bed_df = pd.DataFrame(go_to_bed_df_list)
         if len(go_to_bed_df) == 0:
             go_to_bed_df = pd.DataFrame({"index": [], "error": []})
         go_to_bed_df = go_to_bed_df.set_index("index")
-        go_to_bed_df.to_sql("go_to_bed", conn, if_exists="replace")
+        go_to_bed_df.to_sql("go_to_bed", conn, if_exists="append")
 
         get_up_df = pd.DataFrame(get_up_df_list)
         if len(get_up_df) == 0:
@@ -362,33 +378,33 @@ def read_text(text_path, index_offset=0):
                 }
             )
         get_up_df = get_up_df.set_index("index")
-        get_up_df.to_sql("get_up", conn, if_exists="replace")
+        get_up_df.to_sql("get_up", conn, if_exists="append")
 
         height_df = pd.DataFrame(height_df_list)
         if len(height_df) == 0:
             height_df = pd.DataFrame({"index": [], "height": []})
         height_df = height_df.set_index("index")
-        height_df.to_sql("height", conn, if_exists="replace")
+        height_df.to_sql("height", conn, if_exists="append")
 
         weight_df = pd.DataFrame(weight_df_list)
         if len(weight_df) == 0:
             weight_df = pd.DataFrame({"index": [], "weight": []})
         weight_df = weight_df.set_index("index")
-        weight_df.to_sql("weight", conn, if_exists="replace")
+        weight_df.to_sql("weight", conn, if_exists="append")
 
         expressed_breast_milk_df = pd.DataFrame(expressed_breast_milk_df_list)
         if len(expressed_breast_milk_df) == 0:
             expressed_breast_milk_df = pd.DataFrame({"index": [], "volume": []})
         expressed_breast_milk_df = expressed_breast_milk_df.set_index("index")
         expressed_breast_milk_df.to_sql(
-            "expressed_breast_milk", conn, if_exists="replace"
+            "expressed_breast_milk", conn, if_exists="append"
         )
 
         milk_df = pd.DataFrame(milk_df_list)
         if len(milk_df) == 0:
             milk_df = pd.DataFrame({"index": [], "volume": []})
         milk_df = milk_df.set_index("index")
-        milk_df.to_sql("milk", conn, if_exists="replace")
+        milk_df.to_sql("milk", conn, if_exists="append")
 
         breast_milk_df = pd.DataFrame(breast_milk_df_list)
         if len(breast_milk_df) == 0:
@@ -402,7 +418,7 @@ def read_text(text_path, index_offset=0):
                 }
             )
         breast_milk_df = breast_milk_df.set_index("index")
-        breast_milk_df.to_sql("breast_milk", conn, if_exists="replace")
+        breast_milk_df.to_sql("breast_milk", conn, if_exists="append")
 
         feces_df = pd.DataFrame(feces_df_list)
         if len(feces_df) == 0:
@@ -414,13 +430,25 @@ def read_text(text_path, index_offset=0):
                 }
             )
         feces_df = feces_df.set_index("index")
-        feces_df.to_sql("feces", conn, if_exists="replace")
+        feces_df.to_sql("feces", conn, if_exists="append")
 
         hospital_df = pd.DataFrame(hospital_df_list)
         if len(hospital_df) == 0:
             hospital_df = pd.DataFrame({"index": [], "comment": []})
         hospital_df = hospital_df.set_index("index")
-        hospital_df.to_sql("hospital", conn, if_exists="replace")
+        hospital_df.to_sql("hospital", conn, if_exists="append")
+        
+        vaccine_df = pd.DataFrame(vaccine_df_list)
+        if len(vaccine_df_list) == 0:
+            vaccine_df = pd.DataFrame({"index": [], "vaccine": []})
+        vaccine_df = vaccine_df.set_index("index")
+        vaccine_df.to_sql("vaccine", conn, if_exists="append")
+        
+        prepare_expressed_breast_milk_df = pd.DataFrame(prepare_expressed_breast_milk_df_list)
+        if len(prepare_expressed_breast_milk_df_list) == 0:
+          prepare_expressed_breast_milk_df = pd.DataFrame({"index": [], "volume": []})
+        prepare_expressed_breast_milk_df = prepare_expressed_breast_milk_df.set_index("index")
+        prepare_expressed_breast_milk_df.to_sql("prepare_breast_milk", conn, if_exists="append")
 
         dfs = {
             "date": date_df,
@@ -434,6 +462,7 @@ def read_text(text_path, index_offset=0):
             "breast_milk": breast_milk_df,
             "feces": feces_df,
             "hospital": hospital_df,
+            "vaccine": vaccine_df
         }
         return (
             dfs,
@@ -441,10 +470,10 @@ def read_text(text_path, index_offset=0):
         )
 
 
-def read_texts(text_pathes):
+def read_texts(text_paths):
     index_offset = 0
     ret = None
-    for p in text_pathes:
+    for p in text_paths:
         dfs, index_offset = read_text(text_path=p, index_offset=index_offset)
         if ret is None:
             ret = dfs
