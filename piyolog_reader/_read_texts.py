@@ -264,21 +264,24 @@ def read_text(text_path, index_offset=0):
                 if event_name_end > 0:
                     event_string = event_value_string[:event_name_end]
                     value_string = event_value_string[event_name_end + 1 :]
+                if re.match(r'\d+ml', event_string):
+                  volume_end = event_string.find("ml")
+                  volume = int(event_string[:volume_end])
+                  value_string = event_string
+                  event_string = "挤奶"
                 event_record = {
                     "index": index,
                     "timestamp": event_datetime,
                     "event": event_string,
                 }
                 event_df_list.append(event_record)
-                if re.match(r'\d+ml', event_string):
-                  volume_end = event_string.find("ml")
-                  volume = int(event_string[:volume_end])
-                  record = {
-                    "index": index,
-                    "volume": volume
-                  }
-                  prepare_expressed_breast_milk_df_list.append(record)
-                if event_string == "睡觉":
+                if event_string == "挤奶":
+                    record = {
+                      "index": index,
+                      "volume": volume
+                    }
+                    prepare_expressed_breast_milk_df_list.append(record)
+                elif event_string == "睡觉":
                     record = make_go_to_bed_record(
                         index=index, value_string=value_string
                     )
